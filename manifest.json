@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "boxroom-radio-streams",
+  "name": "BOXROOM Radio Streams",
+  "author": "MidgetBrony",
+  "description": "Internet radio, station search, and saved favorites for BOXROOM's placeable radios.",
+  "repository": "https://github.com/MidgetBrony/Boxroom-RadioStreams",
+  "requirements": {
+    "melonLoader": "0.7.0"
+  },
+  "dependencies": [
+    {
+      "manifest": "https://raw.githubusercontent.com/MidgetBrony/ModsPanel/refs/heads/master/manifest.json",
+      "minimumVersion": "2.2.1",
+      "required": true
+    }
+  ],
+  "release": {
+    "provider": "github",
+    "asset": "Boxroom-RadioStreams.*.zip",
+    "destination": "Mods"
+  }
+}
