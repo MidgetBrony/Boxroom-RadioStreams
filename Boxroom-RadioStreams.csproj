@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Optional ignored file containing a developer's local BOXROOM path. -->
+  <Import Project="Directory.Build.user.props" Condition="Exists('Directory.Build.user.props')" />
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>Boxroom_RadioStreams</AssemblyName>
+    <RootNamespace>BoxroomRadioStreams</RootNamespace>
+    <PlatformTarget>x64</PlatformTarget>
+    <AssemblyVersion>1.2.0.0</AssemblyVersion>
+    <FileVersion>1.2.0.0</FileVersion>
+    <GamePath Condition="'$(GamePath)' == ''">$(BOXROOM_GAME_PATH)</GamePath>
+  </PropertyGroup>
+  <Target Name="ValidateGamePath" BeforeTargets="ResolveAssemblyReferences"
+          Condition="'$(GamePath)' == '' Or !Exists('$(GamePath)\BOXROOM_Data\Managed\Assembly-CSharp.dll')">
+    <Error Text="Set GamePath in Directory.Build.user.props or set the BOXROOM_GAME_PATH environment variable. See Directory.Build.user.props.example." />
+  </Target>
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp"><HintPath>$(GamePath)\BOXROOM_Data\Managed\Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="MelonLoader"><HintPath>$(GamePath)\MelonLoader\net35\MelonLoader.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="0Harmony"><HintPath>$(GamePath)\MelonLoader\net35\0Harmony.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="ModsPanel"><HintPath>$(GamePath)\Mods\ModsPanel.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="FMODUnity"><HintPath>$(GamePath)\BOXROOM_Data\Managed\FMODUnity.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Newtonsoft.Json"><HintPath>$(GamePath)\BOXROOM_Data\Managed\Newtonsoft.Json.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine"><HintPath>$(GamePath)\BOXROOM_Data\Managed\UnityEngine.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(GamePath)\BOXROOM_Data\Managed\UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AudioModule"><HintPath>$(GamePath)\BOXROOM_Data\Managed\UnityEngine.AudioModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.InputLegacyModule"><HintPath>$(GamePath)\BOXROOM_Data\Managed\UnityEngine.InputLegacyModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UnityWebRequestModule"><HintPath>$(GamePath)\BOXROOM_Data\Managed\UnityEngine.UnityWebRequestModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UnityWebRequestAudioModule"><HintPath>$(GamePath)\BOXROOM_Data\Managed\UnityEngine.UnityWebRequestAudioModule.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>

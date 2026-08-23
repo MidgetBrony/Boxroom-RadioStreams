@@ -1,0 +1,6 @@
+<Project>
+  <!-- Copy this file to Directory.Build.user.props and set your BOXROOM folder. -->
+  <PropertyGroup>
+    <GamePath>D:\SteamLibrary\steamapps\common\My Game Room</GamePath>
+  </PropertyGroup>
+</Project>
