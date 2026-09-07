@@ -1,6 +1,6 @@
 using MelonLoader;
 
-[assembly: MelonInfo(typeof(BoxroomRadioStreams.Core), "BOXROOM Radio Streams", "1.2.0", "MidgetBrony")]
+[assembly: MelonInfo(typeof(BoxroomRadioStreams.Core), "BOXROOM Radio Streams", "1.2.2", "MidgetBrony")]
 [assembly: MelonGame(null, "BOXROOM")]
 
 namespace BoxroomRadioStreams

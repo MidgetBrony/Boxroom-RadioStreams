@@ -18,6 +18,7 @@
   "release": {
     "provider": "github",
     "asset": "Boxroom-RadioStreams.*.zip",
+    "checksumAsset": "SHA256SUMS.txt",
     "destination": "Mods"
   }
 }
