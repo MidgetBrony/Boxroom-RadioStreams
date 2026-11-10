@@ -23,6 +23,13 @@ namespace BoxroomRadioStreams
         {
             Stop();
             if (radio == null) return;
+            if (station == null || !StationStore.TryNormalizeHttpUrl(station.Url, out string streamUrl))
+            {
+                MelonLogger.Warning("[RadioStreams] Rejected an invalid stream URL.");
+                ModsPanel.ModsUi.ShowToast("Could not play station: invalid stream address", 6f);
+                return;
+            }
+            station.Url = streamUrl;
 
             // Turn BOXROOM's FMOD/album playback off before claiming this radio.
             // Native integration should replace this reflection with a shared
@@ -41,10 +48,10 @@ namespace BoxroomRadioStreams
             // CREATESTREAM avoids downloading an endless broadcast. NONBLOCKING
             // keeps network/TLS work off the frame that handled the UI click.
             MODE mode = MODE.CREATESTREAM | MODE.NONBLOCKING | MODE._3D | MODE._3D_WORLDRELATIVE | MODE.MPEGSEARCH;
-            RESULT result = RuntimeManager.CoreSystem.createSound(station.Url, mode, out streamSound);
+            RESULT result = RuntimeManager.CoreSystem.createSound(station.Url, mode, out FMOD.Sound pendingSound);
             if (result != RESULT.OK)
             {
-                Fail(station, "FMOD createSound returned " + result);
+                FailPending(station, pendingSound, token, "FMOD createSound returned " + result);
                 yield break;
             }
 
@@ -53,10 +60,10 @@ namespace BoxroomRadioStreams
             OPENSTATE lastState = OPENSTATE.MAX;
             while (token == generation && Time.realtimeSinceStartup - started < 25f)
             {
-                result = streamSound.getOpenState(out OPENSTATE state, out uint percent, out bool starving, out bool diskBusy);
+                result = pendingSound.getOpenState(out OPENSTATE state, out uint percent, out bool starving, out bool diskBusy);
                 if (result != RESULT.OK)
                 {
-                    Fail(station, "FMOD getOpenState returned " + result);
+                    FailPending(station, pendingSound, token, "FMOD getOpenState returned " + result);
                     yield break;
                 }
                 if (percent != lastPercent || state != lastState)
@@ -67,7 +74,7 @@ namespace BoxroomRadioStreams
                 }
                 if (state == OPENSTATE.ERROR)
                 {
-                    Fail(station, "FMOD reported a stream/network error");
+                    FailPending(station, pendingSound, token, "FMOD reported a stream/network error");
                     yield break;
                 }
                 // A buffered percentage does not mean FMOD has completed its
@@ -75,10 +82,18 @@ namespace BoxroomRadioStreams
                 // ERR_NOTREADY, so only claim the channel once READY is reported.
                 if (state == OPENSTATE.READY)
                 {
+                    if (token != generation)
+                    {
+                        ReleaseWhenSafe(pendingSound);
+                        yield break;
+                    }
+
+                    streamSound = pendingSound;
                     result = RuntimeManager.CoreSystem.playSound(streamSound, default(ChannelGroup), true, out streamChannel);
                     if (result != RESULT.OK)
                     {
-                        Fail(station, "FMOD playSound returned " + result);
+                        streamSound.clearHandle();
+                        FailPending(station, pendingSound, token, "FMOD playSound returned " + result);
                         yield break;
                     }
                     // Pin the FMOD channel to the radio rather than the player.
@@ -95,15 +110,52 @@ namespace BoxroomRadioStreams
                 yield return null;
             }
 
-            if (token == generation) Fail(station, "connection timed out after 25 seconds");
+            if (token == generation) FailPending(station, pendingSound, token, "connection timed out after 25 seconds");
+            else ReleaseWhenSafe(pendingSound);
         }
 
-        /// <summary>Reports a station-level failure without destabilizing the menu.</summary>
-        private static void Fail(Station station, string error)
+        /// <summary>Reports failure and lets FMOD finish opening before cleanup.</summary>
+        private static void FailPending(Station station, FMOD.Sound pendingSound, int token, string error)
         {
             MelonLogger.Warning("[RadioStreams] " + station.Name + ": " + error);
             ModsPanel.ModsUi.ShowToast("Could not play station: " + error, 6f);
-            Stop();
+            if (token == generation)
+            {
+                generation++;
+                owner = null;
+            }
+            ReleaseWhenSafe(pendingSound);
+        }
+
+        /// <summary>
+        /// FMOD forbids releasing a NONBLOCKING sound while it is still connecting.
+        /// Wait for a terminal open state instead of risking a native use-after-free.
+        /// </summary>
+        private static void ReleaseWhenSafe(FMOD.Sound sound)
+        {
+            if (sound.hasHandle()) MelonCoroutines.Start(WaitAndRelease(sound));
+        }
+
+        private static IEnumerator WaitAndRelease(FMOD.Sound sound)
+        {
+            while (sound.hasHandle())
+            {
+                RESULT result = sound.getOpenState(out OPENSTATE state, out _, out _, out _);
+                if (result == RESULT.ERR_INVALID_HANDLE)
+                {
+                    sound.clearHandle();
+                    yield break;
+                }
+                if (state == OPENSTATE.READY || state == OPENSTATE.ERROR)
+                {
+                    RESULT releaseResult = sound.release();
+                    if (releaseResult != RESULT.OK && releaseResult != RESULT.ERR_INVALID_HANDLE)
+                        MelonLogger.Warning("[RadioStreams] Deferred FMOD release returned " + releaseResult);
+                    sound.clearHandle();
+                    yield break;
+                }
+                yield return new WaitForSecondsRealtime(0.1f);
+            }
         }
 
         /// <summary>Lets BOXROOM's original interaction reclaim the radio.</summary>
@@ -111,12 +163,17 @@ namespace BoxroomRadioStreams
         /// <summary>Stops a channel whose emitting scene object was destroyed.</summary>
         internal static void StopIfOwnedBy(Interactable_Radio radio) { if (owner == radio) Stop(); }
 
-        /// <summary>Releases the FMOD channel and sound exactly once.</summary>
+        /// <summary>Stops playback and schedules the FMOD sound for safe release.</summary>
         internal static void Stop()
         {
             generation++;
             if (streamChannel.hasHandle()) { streamChannel.stop(); streamChannel.clearHandle(); }
-            if (streamSound.hasHandle()) { streamSound.release(); streamSound.clearHandle(); }
+            if (streamSound.hasHandle())
+            {
+                FMOD.Sound soundToRelease = streamSound;
+                streamSound.clearHandle();
+                ReleaseWhenSafe(soundToRelease);
+            }
             owner = null;
         }
     }

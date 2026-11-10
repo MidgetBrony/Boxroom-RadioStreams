@@ -98,7 +98,8 @@ namespace BoxroomRadioStreams
 
             using (UnityWebRequest request = UnityWebRequest.Get(url))
             {
-                request.SetRequestHeader("User-Agent", "BOXROOM-RadioStreams/1.2");
+                request.timeout = 15;
+                request.SetRequestHeader("User-Agent", "BOXROOM-RadioStreams/1.2.3");
                 yield return request.SendWebRequest();
                 if (request.result != UnityWebRequest.Result.Success)
                 {
@@ -119,8 +120,8 @@ namespace BoxroomRadioStreams
                         string streamUrl = (string)row["url_resolved"] ?? (string)row["url"];
                         // BOXROOM's current FMOD path is intentionally limited to
                         // direct MP3 streams. AAC/HLS results would fail later.
-                        if (codec != "MP3" || !StationStore.IsHttpUrl(streamUrl)) continue;
-                        AddStationButton(new Station { Name = (string)row["name"] ?? "Unnamed station", Url = streamUrl, Country = (string)row["countrycode"], Codec = codec, Bitrate = (int?)row["bitrate"] ?? 0 });
+                        if (codec != "MP3" || !StationStore.TryNormalizeHttpUrl(streamUrl, out string normalizedUrl)) continue;
+                        AddStationButton(new Station { Name = (string)row["name"] ?? "Unnamed station", Url = normalizedUrl, Country = (string)row["countrycode"], Codec = codec, Bitrate = (int?)row["bitrate"] ?? 0 });
                         count++;
                     }
                     if (count == 0) menu.AddLabel("No compatible MP3 stations matched that search.");

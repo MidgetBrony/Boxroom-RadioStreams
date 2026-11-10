@@ -58,7 +58,12 @@ namespace BoxroomRadioStreams
             {
                 StationFile file = JsonConvert.DeserializeObject<StationFile>(File.ReadAllText(FilePath));
                 Stations = file?.Stations ?? new List<Station>();
-                Stations.RemoveAll(s => s == null || string.IsNullOrWhiteSpace(s.Name) || !IsHttpUrl(s.Url));
+                Stations.RemoveAll(s => s == null || string.IsNullOrWhiteSpace(s.Name) || !TryNormalizeHttpUrl(s.Url, out _));
+                foreach (Station station in Stations)
+                {
+                    TryNormalizeHttpUrl(station.Url, out string normalized);
+                    station.Url = normalized;
+                }
             }
             catch (Exception ex)
             {
@@ -93,9 +98,22 @@ namespace BoxroomRadioStreams
                 new StationFile { Stations = Stations }, Formatting.Indented));
         }
 
-        /// <summary>Accepts only direct absolute HTTP(S) endpoints.</summary>
-        internal static bool IsHttpUrl(string value) =>
-            Uri.TryCreate(value, UriKind.Absolute, out Uri uri) &&
-            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+        /// <summary>Accepts and canonicalizes only direct absolute HTTP(S) endpoints.</summary>
+        internal static bool TryNormalizeHttpUrl(string value, out string normalized)
+        {
+            normalized = null;
+            if (string.IsNullOrWhiteSpace(value) ||
+                !Uri.TryCreate(value.Trim(), UriKind.Absolute, out Uri uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) ||
+                string.IsNullOrWhiteSpace(uri.Host))
+            {
+                return false;
+            }
+
+            normalized = uri.AbsoluteUri;
+            return true;
+        }
+
+        internal static bool IsHttpUrl(string value) => TryNormalizeHttpUrl(value, out _);
     }
 }
